@@ -119,10 +119,14 @@ pub fn simplify(mesh: &Mesh, tol: f64) -> Mesh {
     for (i, v) in mesh.verts.iter().enumerate() {
         let c = cell(v);
         let mut found = None;
+        // Reported behaviour (issue #152): past about 9.2e14 mm the cell number saturates at i64::MAX
+        // and c + 1 overflows in debug builds, while in release it wraps empty and every corner stays
+        // twice. The neighbours saturate with the cell, so far corners weld as near ones do. Measured
+        // with a 1 mm square at x = 1e14: 6 corners in, 4 out.
         'look: for dx in -1..=1 {
             for dy in -1..=1 {
                 for dz in -1..=1 {
-                    for &k in grid.get(&[c[0] + dx, c[1] + dy, c[2] + dz]).map(|v| v.as_slice()).unwrap_or(&[]) {
+                    for &k in grid.get(&[c[0].saturating_add(dx as i64), c[1].saturating_add(dy as i64), c[2].saturating_add(dz as i64)]).map(|v| v.as_slice()).unwrap_or(&[]) {
                         if norm(sub(pos[k as usize], [v.x, v.y, v.z])) <= weld {
                             found = Some(k);
                             break 'look;

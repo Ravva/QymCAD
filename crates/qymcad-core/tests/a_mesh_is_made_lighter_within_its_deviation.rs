@@ -129,3 +129,27 @@ fn a_seam_off_by_the_last_digits_stays_closed() {
     assert!(closed(&light), "the cube with its top a nanometre off came back open");
     assert!((volume(&light) - 1.0e6).abs() < 1.0, "the cube holds {}", volume(&light));
 }
+
+/// FAR CORNERS WELD WITHOUT PANIC (issue #152): past about 9.2e14 mm the weld cell saturates at
+/// i64::MAX, and looking into the neighbouring cells overflowed in debug builds, while in release
+/// the corners never met. A 1 mm square at x = 1e14, every corner once per triangle as a triangle
+/// file carries them, comes back 4 corners out of 6.
+#[test]
+fn far_corners_weld_without_panic() {
+    let x = 1e14;
+    let mesh = Mesh {
+        verts: vec![
+            Point3::new(x, 0.0, 0.0),
+            Point3::new(x + 1.0, 0.0, 0.0),
+            Point3::new(x + 1.0, 1.0, 0.0),
+            Point3::new(x, 0.0, 0.0),
+            Point3::new(x + 1.0, 1.0, 0.0),
+            Point3::new(x, 1.0, 0.0),
+        ],
+        tris: vec![[0, 1, 2], [3, 4, 5]],
+        ..Default::default()
+    };
+    let light = simplify(&mesh, 0.0);
+    assert_eq!(light.verts.len(), 4, "the 6 corners weld into 4: {:?}", light.verts);
+    assert_eq!(light.tris.len(), 2, "both triangles stand");
+}
